@@ -13,7 +13,6 @@ This README provides an in-depth look at the chat application's architecture, ke
 4. [Race Conditions and Parallelism Handling](#handling-race-conditions-and-parallelism)
 5. [Technologies Used](#technologies-used)
 6. [Setup Instructions](#setup-instructions)
-7. [Conclusion](#conclusion)
 
 ## Project Structure
 
