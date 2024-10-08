@@ -1,78 +1,75 @@
-class ChatDatastore
+class ChatsDatastore
 
-  def self.get_application_id_by_token(application_token)
-    application_data = RedisService.get_application_by_token(application_token)
-    if application_data.nil?
-      application = ApplicationRepository.get_application(application_token)
-      application_id = application.id
-      Rails.logger.warn "getting from database application id is: #{application_id}"
-      Rails.logger.warn "setting application in redis with token: #{application_token}"
-      RedisService.set_application(application)
-    else
-      application_id = application_data["id"]
-      Rails.logger.warn "Application id retrieved from Redis: #{application_id}"
+  def self.get_chat_id(application_token, chat_number)
+    chat_data = ChatRedisRepository.get_chat(application_token, chat_number)
+    if chat_data
+      return chat_data["id"].to_i
     end
-    application_id
+    chat = ChatDatabaseRepository.get_chat(application_token, chat_number)
+    if chat
+      ChatRedisRepository.set_chat(application_token, chat)
+      return chat.id
+    end
+    Rails.logger.error("Chat not found for application_token: #{application_token}, chat_number: #{chat_number}")
+    raise ActiveRecord::RecordNotFound, "Chat not found for application_token: #{application_token}, chat_number: #{chat_number}"
   end
 
-  def self.create_chat_and_update_counts(application_id, application_token)
-    lock_key = "lock:chat_creation:#{application_token}"
-    if Redis.current.set(lock_key, "true", nx: true, ex: 5)
-      begin
-        ApplicationRecord.transaction do
-
-          # Increment the chat number in Redis
-          chat_number = increment_chat_number(application_token)
-
-          # Create the chat with the given chat_number
-          ChatRepository.create_chat(application_id, chat_number)
-
-          # Increment the chat count in Redis
-          increment_chat_count(application_token)
-
-          # Mark this application as needing a sync
-          add_application_needing_sync(application_id)
-        end
-      ensure
-        # Release the lock after processing
-        Redis.current.del(lock_key)
+  def self.create_chat_and_update_counts(application_token)
+    chat_number = nil
+    chat_count = nil
+    LockRedisRepository.acquire_lock(application_token, chat_number,) do
+      ApplicationRecord.transaction do
+        validate_application_last_chat_number(application_token)
+        application_id = ApplicationsDatastore.get_application_id_by_token(application_token)
+        chat_number = increment_application_chat_number(application_token)
+        ChatDatabaseRepository.create_chat(application_id, chat_number)
+        chat_count = increment_application_chat_count(application_token)
+        add_application_needing_sync(application_token)
+        chat_number
       end
     end
   rescue StandardError => e
-    Rails.logger.error "Failed to create chat and update counts: #{e.message}"
-    raise
+    handle_creation_failure(application_token, chat_number, chat_count, e)
   end
 
-  def self.get_last_chat_number(application_token)
-    last_chat_number = RedisService.get_chat_number(application_token)
-
-    if last_chat_number.nil?
-      application = ApplicationRepository.get_application(application_token)
-      last_chat_number = ApplicationRepository.max_chat_number(application)
-      Rails.logger.warn("Getting chat number from database = #{last_chat_number} for application token: #{application_token}")
-      RedisService.set_chat_number(application_token, last_chat_number)
-    else
-      last_chat_number = last_chat_number.to_i
-    end
-    last_chat_number
+  def self.handle_creation_failure(application_token, chat_number, chat_count, error)
+    decrement_application_chat_number(application_token) if chat_number
+    decrement_application_chat_count(application_token) if chat_count
+    raise error
   end
 
-  def self.increment_chat_number(application_token)
-    RedisService.increment_chat_number(application_token)
+  def self.validate_application_last_chat_number(application_token)
+    ApplicationsDatastore.validate_application_last_chat_number(application_token)
   end
 
-  def self.increment_chat_count(application_token)
-    RedisService.increment_chat_count(application_token)
+  def self.increment_application_chat_number(application_token)
+    ChatRedisRepository.increment_application_chat_number(application_token)
   end
 
-  def self.add_application_needing_sync(application_id)
-    RedisService.add_application_needing_sync(application_id)
+  def self.increment_application_chat_count(application_token)
+    ChatRedisRepository.increment_application_chat_count(application_token)
+  end
+
+  def self.decrement_application_chat_number(application_token)
+    ChatRedisRepository.decrement_application_chat_number(application_token)
+  end
+
+  def self.decrement_application_chat_count(application_token)
+    ChatRedisRepository.decrement_application_chat_count(application_token)
+  end
+
+  def self.add_application_needing_sync(application_token)
+    ChatRedisRepository.add_application_needing_sync(application_token)
   end
 
   def self.get_application_chats(application_token)
-    application = Application.find_by(token: application_token)
-    raise ActiveRecord::RecordNotFound, "Application not found" unless application
-    application.chats
+    application_id = ApplicationsDatastore.get_application_id_by_token(application_token)
+    chats = ChatDatabaseRepository.get_application_chats(application_id).map do |chat|
+      {
+        chat_number: chat.chat_number,
+        messages_count: MessageRedisRepository.get_chat_messages_count(application_token, chat.chat_number) || chat.messages_count
+      }
+    end
+    chats
   end
-
 end

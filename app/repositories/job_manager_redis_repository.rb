@@ -11,5 +11,4 @@ class JobManagerRedisRepository < RedisRepository
     error_message = get("#{job_type}_creation_error:#{job_id}")
     raise ErrorHandlingService.parse_error_message(error_message)
   end
-
 end

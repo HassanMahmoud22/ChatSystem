@@ -1,0 +1,5 @@
+sync_counts_job:
+  cron: "*/15 * * * *"   # Run every 15 minutes
+  class: "SyncCountsJob"  # The class that will be executed
+  queue: default          # The Sidekiq queue the job will use
+  description: "Job to sync application and chat counts from Redis to the database"

@@ -7,14 +7,11 @@ class ApplicationRedisRepository < RedisRepository
       name: application.name,
       chat_count: application.chats.count
     }.to_json
-
     set(application_key(application.token), application_data)
-    Rails.logger.info("Stored application in Redis for token: #{application.token}")
   end
 
   def self.initialize_chat_number(application_token)
     set("#{application_key(application_token)}:chat_number", "0")
-    Rails.logger.debug("Initialized chat number to 0 for application token: #{application_token}")
   end
 
   def self.increment_chat_count(application_token)
@@ -25,27 +22,23 @@ class ApplicationRedisRepository < RedisRepository
     adjust_chat_count(application_token, -1)
   end
 
-  def self.get_chat_count(application_token)
+  def self.get_application_chat_count(application_token)
     application = get_application_by_token(application_token)
     application ? application["chat_count"].to_i : nil
   end
 
-  def self.get_application_chat_count(application_token)
-    application = get_application_by_token(application_token)
-    application ? application["chat_count"].to_i : nil
+  def remove_application_from_needing_sync(application_token)
+    Redis.current.srem("applications_needing_sync", application_token)
   end
 
   private
 
   def self.adjust_chat_count(application_token, adjustment)
     application_data = get_application_by_token(application_token)
-
     if application_data
       chat_count = application_data["chat_count"].to_i + adjustment
       application_data["chat_count"] = chat_count
-
       RedisRepository.set(application_key(application_token), application_data.to_json)
-      Rails.logger.info("#{adjustment > 0 ? 'Incremented' : 'Decremented'} chat count for token: #{application_token}")
     else
       Rails.logger.warn("Couldn't adjust chat count for token: #{application_token} - application not found")
     end

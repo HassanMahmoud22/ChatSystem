@@ -1,4 +1,3 @@
-# app/services/chats_service.rb
 class ChatsService
 
   def initialize(application_token)

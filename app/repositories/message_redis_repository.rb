@@ -3,6 +3,12 @@ class MessageRedisRepository < RedisRepository
     "#{application_key(application_token)}:#{CHAT_KEY_PREFIX}#{chat_number}:message_number"
   end
 
+  def self.get_chat_messages_count(application_token, chat_number)
+    chat_data = get_chat(application_token, chat_number)
+    if chat_data
+      chat_data["messages_count"].to_i
+    end
+  end
 
   def self.decrement_chat_message_number(application_token, chat_number)
     new_message_number = Redis.current.decr(chat_message_number_key(application_token, chat_number))
@@ -33,10 +39,23 @@ class MessageRedisRepository < RedisRepository
     adjust_chat_messages_count(application_token, chat_number, -1)
   end
 
-  def self.add_chat_needing_sync(chat_id)
-    Redis.current.sadd("chats_needing_sync", chat_id.to_s)
+  def self.add_chat_needing_sync(application_token, chat_number)
+    Redis.current.sadd("chats_needing_sync", RedisRepository.chat_key(application_token, chat_number))
+    Rails.logger.warn("added chat needing sync: #{chat_key(application_token, chat_number)}")
   rescue StandardError => e
-    Rails.logger.error("Failed to add chat needing sync: #{chat_id}, error: #{e.message}")
+    Rails.logger.error("Failed to add chat needing sync, error: #{e.message}")
+  end
+
+  def self.set_message_creation_result(job_id, message_number)
+    set("message_creation_result:#{job_id}", message_number, ex: 60)
+  end
+
+  def self.set_message_creation_status(job_id, status)
+    set("message_creation_status:#{job_id}", status)
+  end
+
+  def self.set_message_creation_error(job_id, error)
+    set("message_creation_error:#{job_id}", error.to_s, ex: 60)
   end
 
   private

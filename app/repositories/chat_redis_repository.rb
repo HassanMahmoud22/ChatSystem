@@ -9,9 +9,7 @@ class ChatRedisRepository < RedisRepository
       id: chat.id,
       messages_count: chat.messages.count
     }.to_json
-
     set(chat_key(application_token, chat.chat_number), chat_data)
-    Rails.logger.info("Stored chat in Redis for application token: #{application_token}, chat number: #{chat.chat_number}")
   end
 
   def self.increment_application_chat_count(application_token)
@@ -28,25 +26,36 @@ class ChatRedisRepository < RedisRepository
 
   def self.set_application_chat_number(application_token, chat_number)
     set("#{application_key(application_token)}:chat_number", chat_number.to_s)
-    Rails.logger.debug("Set new chat number to #{chat_number} for application token: #{application_token}")
   end
 
   def self.increment_application_chat_number(application_token)
-    new_chat_number = Redis.current.incr("#{application_key(application_token)}:chat_number")
-    Rails.logger.info("Incremented chat number to #{new_chat_number} for application token: #{application_token}")
-    new_chat_number
+    Redis.current.incr("#{application_key(application_token)}:chat_number")
   end
 
   def self.decrement_application_chat_number(application_token)
-    new_chat_number = Redis.current.decr("#{application_key(application_token)}:chat_number")
-    Rails.logger.info("Decremented chat number to #{new_chat_number} for application token: #{application_token}")
-    new_chat_number
+    Redis.current.decr("#{application_key(application_token)}:chat_number")
   end
 
-  def self.add_application_needing_sync(application_id)
-    Redis.current.sadd("applications_needing_sync", application_id.to_s)
+  def self.add_application_needing_sync(application_token)
+    Redis.current.sadd("applications_needing_sync", application_token)
   rescue StandardError => e
-    Rails.logger.error("Failed to add application needing sync: #{application_id}, error: #{e.message}")
+    Rails.logger.error("Failed to add application needing sync: #{application_token}, error: #{e.message}")
+  end
+
+  def self.set_chat_creation_result(job_id, chat_number)
+    set("chat_creation_result:#{job_id}", chat_number, 60)
+  end
+
+  def self.set_chat_creation_status(job_id, status)
+    set("chat_creation_status:#{job_id}", status)
+  end
+
+  def self.set_chat_creation_error(job_id, error)
+    set("chat_creation_error:#{job_id}", error.to_s, ex: 60)
+  end
+
+  def self.remove_chat_from_needing_sync(chat_key)
+    Redis.current.srem("chats_needing_sync", chat_key)
   end
 
   private
@@ -57,9 +66,7 @@ class ChatRedisRepository < RedisRepository
     if application_data
       chat_count = application_data["chat_count"].to_i + adjustment
       application_data["chat_count"] = chat_count
-
       set(application_key(application_token), application_data.to_json)
-      Rails.logger.info("#{adjustment > 0 ? 'Incremented' : 'Decremented'} chat count for token: #{application_token}")
     else
       Rails.logger.warn("Couldn't adjust chat count for token: #{application_token} - application not found")
     end
