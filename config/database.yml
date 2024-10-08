@@ -15,7 +15,7 @@ default: &default
   pool: <%= ENV.fetch("RAILS_MAX_THREADS") { 5 } %>
   username: root
   password: EL_123456
-  host: chatsystem-db-1 # Use the container name as the host
+  host: db
   port: 3306
 
 development:

@@ -1,13 +1,10 @@
 version: '3.8'
-
 services:
   db:
     image: mysql:8.0
     environment:
-      MYSQL_ROOT_PASSWORD: password
-      MYSQL_DATABASE: my_database
-      MYSQL_USER: root
-      MYSQL_PASSWORD: password
+      MYSQL_ROOT_PASSWORD: EL_123456
+      MYSQL_DATABASE: chat_system
     ports:
       - "3306:3306"
     volumes:
@@ -39,10 +36,9 @@ services:
     environment:
       REDIS_URL: redis://redis:6379/0
 
-
   web:
     build: .
-    command: bash -c "rm -f tmp/pids/server.pid && bundle exec rails s -b '0.0.0.0'"
+    command: bash -c "rm -f tmp/pids/server.pid && bundle exec rails db:migrate && bundle exec rails s -b '0.0.0.0'"
     volumes:
       - .:/app
     ports:
@@ -53,7 +49,6 @@ services:
       - elasticsearch
     environment:
       MYSQL_HOST: db
-      MYSQL_USER: root
       MYSQL_PASSWORD: EL_123456
       MYSQL_DATABASE: chat_system
       REDIS_URL: redis://redis:6379/0

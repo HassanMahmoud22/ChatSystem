@@ -10,13 +10,12 @@ RUN apt-get update -qq && apt-get install -y \
 
 RUN curl -fsSL https://artifacts.elastic.co/GPG-KEY-elasticsearch | apt-key add - && \
     apt-get install -y apt-transport-https && \
-    echo "deb https://artifacts.elastic.co/packages/7.x/apt stable main" | tee -a /etc/apt/sources.list.d/elastic-7.x.list && \
+    echo "deb https://artifacts.elastic.co/packages/7.x/apt stable main" | tee /etc/apt/sources.list.d/elastic-7.x.list && \
     apt-get update && apt-get install -y elasticsearch
 
 WORKDIR /app
 
 COPY Gemfile Gemfile.lock ./
-
 RUN bundle install
 
 COPY . .
@@ -24,12 +23,10 @@ COPY . .
 COPY wait-curl.sh /app/wait-curl.sh
 RUN chmod +x /app/wait-curl.sh
 
-EXPOSE 3000
+EXPOSE 3000 6379 3306 9200
 
-EXPOSE 6379
-
-ENV MYSQL_HOST=mysql
-ENV MYSQL_USER=root
+ENV MYSQL_HOST=db
+ENV MYSQL_USERNAME=root
 ENV MYSQL_PASSWORD=EL_123456
 ENV MYSQL_DATABASE=chat_system
 
