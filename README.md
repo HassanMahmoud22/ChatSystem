@@ -13,6 +13,7 @@ This README provides an in-depth look at the chat application's architecture, ke
 4. [Race Conditions and Parallelism Handling](#handling-race-conditions-and-parallelism)
 5. [Technologies Used](#technologies-used)
 6. [Setup Instructions](#setup-instructions)
+7. [Conclusion](#conclusion)
 
 ## Project Structure
 
@@ -123,7 +124,15 @@ The project is organized into controllers, services, background jobs, and data s
 Concurrency is managed using Redis for chat and message counts, background jobs for asynchronous processing, and unique constraints in the database for enforcing data integrity.
 
 1. **Redis:** Chat and message counts are stored in Redis for fast access, reducing database load.
-2. **Background Jobs:** All chat and message creations are processed asynchronously, preventing blocking of main threads.
+2. **Background Jobs:** 
+- All chat and message creations are processed asynchronously, preventing blocking of main threads.
+- Background Job for Synchronizing Counts
+  - **Purpose:** Syncs `messages_count` and `chat_count` from Redis to the database.
+  - **Frequency:** Runs automatically every 15 minutes. (configurable)
+  - **Benefits:**
+    - Ensures data accuracy between Redis and the database.
+    - Prevents discrepancies due to concurrent operations.
+    - Enhances performance by minimizing direct database access.
 3. **Locking Mechanisms:** Redis locks are implemented to ensure sequential access to shared resources like chat numbers and message counts.
 
 ## Technologies Used
@@ -137,9 +146,12 @@ Concurrency is managed using Redis for chat and message counts, background jobs 
 ## Setup Instructions
 
 1. Clone the repository.
-2. build the Docker file:
+2. Install the necessary gems:
+   ```bash
+   bundle install
+3. build the Docker file:
    ```bash
    docker-compose build 
-3. run the Docker file:
+4. run the Docker file:
    ```bash
    docker-compose up      
