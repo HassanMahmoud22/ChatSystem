@@ -13,7 +13,6 @@ This README provides an in-depth look at the chat application's architecture, ke
 4. [Race Conditions and Parallelism Handling](#handling-race-conditions-and-parallelism)
 5. [Technologies Used](#technologies-used)
 6. [Setup Instructions](#setup-instructions)
-7. [Conclusion](#conclusion)
 
 ## Project Structure
 
@@ -146,12 +145,9 @@ Concurrency is managed using Redis for chat and message counts, background jobs 
 ## Setup Instructions
 
 1. Clone the repository.
-2. Install the necessary gems:
-   ```bash
-   bundle install
-3. build the Docker file:
+2. build the Docker file:
    ```bash
    docker-compose build 
-4. run the Docker file:
+3. run the Docker file:
    ```bash
    docker-compose up      
